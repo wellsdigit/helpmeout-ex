@@ -1,37 +1,32 @@
-// popup.js
+document.addEventListener("DOMContentLoaded", ()=>{
+    // GET THE SELECTORS OF THE BUTTONS
+    const startVideoButton = document.querySelector("#startButton")
+    const stopVideoButton = document.querySelector("#stopButton")
 
-document.addEventListener('DOMContentLoaded', function () {
-    const startButton = document.getElementById('startButton');
-    const stopButton = document.getElementById('stopButton');
-  
-    startButton.addEventListener('click', () => {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        const activeTab = tabs[0];
-        chrome.scripting.executeScript({
-          target: { tabId: activeTab.id },
-          function: startRecordingFunction,
-        });
-      });
-    });
-  
-    stopButton.addEventListener('click', () => {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        const activeTab = tabs[0];
-        chrome.scripting.executeScript({
-          target: { tabId: activeTab.id },
-          function: stopRecordingFunction,
-        });
-      });
-    });
-  });
-  
-  // Function to start recording in the content script
-  function startRecordingFunction() {
-    chrome.runtime.sendMessage({ action: 'startRecording' });
-  }
-  
-  // Function to stop recording in the content script
-  function stopRecordingFunction() {
-    chrome.runtime.sendMessage({ action: 'stopRecording' });
-  }
-  
+    // adding event listeners
+
+    startVideoButton.addEventListener("click", ()=>{
+        chrome.tabs.query({active: true, currentWindow: true}, function(tabs){
+            chrome.tabs.sendMessage(tabs[0].id, {action: "request_recording"},  function(response){
+                if(!chrome.runtime.lastError){
+                    console.log(response)
+                } else{
+                    console.log(chrome.runtime.lastError, 'error line 14')
+                }
+            })
+        } )
+    })
+
+
+    stopVideoButton.addEventListener("click", ()=>{
+        chrome.tabs.query({active: true, currentWindow: true}, function(tabs){
+            chrome.tabs.sendMessage(tabs[0].id, {action: "stopvideo"},  function(response){
+                if(!chrome.runtime.lastError){
+                    console.log(response)
+                } else{
+                    console.log(chrome.runtime.lastError, 'error line 27')
+                }
+            })
+        } )
+    })
+})

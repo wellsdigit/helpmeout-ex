@@ -1,70 +1,90 @@
-// content.js
+console.log('Hi, I have been injected whoopie!!!');
 
-let isRecording = false;
-let mediaStream;
-let mediaRecorder;
-let chunks = [];
+var recorder = null;
+function onAccessApproved(stream) {
+  recorder = new MediaRecorder(stream);
 
-// Create and inject the screen selection UI into the page
-function injectScreenSelectionUI() {
-  // Create and style the UI elements as needed
-  const screenSelectionUI = document.createElement('div');
-  screenSelectionUI.innerHTML = `
-    <div id="screenSelection">
-      <h1>Screen Selection</h1>
-      <!-- Add your screen selection interface here -->
-    </div>
-  `;
+  recorder.start();
 
-  // Append the UI to the body of the current tab
-  document.body.appendChild(screenSelectionUI);
+  recorder.onstop = function () {
+    stream.getTracks().forEach(function (track) {
+      if (track.readyState === 'live') {
+        track.stop();
+      }
+    });
+  };
 
-  // Add event listeners and functionality for the screen selection UI
-  // You'll need to implement your screen recording logic here
+  recorder.ondataavailable = function (event) {
+    // When data is available (part of the recording), this function is called
+
+    // Get the recorded data as a blob
+    // let recordedBlob = event.data;
+    console.log(recordedBlob);
+    let recordedBlob = event.data;
+    // let url = URL.createObjectURL(recordedBlob);
+
+    // let a = document.createElement('a');
+
+    // a.style.display = 'none';
+    // a.href = url;
+    // a.download = 'screen-recording.webm';
+
+    // document.body.appendChild(a);
+    // a.click();
+
+    // document.body.removeChild(a);
+
+    // URL.revokeObjectURL(url);
+
+    // Create a FormData object to send the Blob data
+    let formData = new FormData();
+    formData.append('video', recordedBlob);
+
+    // Define the URL of your endpoint
+    let endpointUrl = 'https://hng-extension.akuya.tech/api/recordings'; // Replace with your endpoint URL
+
+    // Send the Blob data to the endpoint using a POST request
+    fetch(endpointUrl, {
+      method: 'POST',
+      body: formData,
+    })
+      .then((response) => {
+        if (response.ok) {
+          console.log('Blob data sent successfully');
+        } else {
+          console.error('Error sending Blob data:', response.status);
+        }
+      })
+      .catch((error) => {
+        console.error('Error sending Blob data:', error);
+      });
+  };
 }
 
-// Handle messages from the popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'startRecording' && !isRecording) {
-    startRecording();
-  } else if (message.action === 'stopRecording' && isRecording) {
-    stopRecording();
+  if (message.action === 'request_recording') {
+    console.log('requesting recording');
+
+    sendResponse(`processed: ${message.action}`);
+
+    navigator.mediaDevices
+      .getDisplayMedia({
+        audio: true,
+        video: {
+          width: 9999999999,
+          height: 9999999999,
+        },
+      })
+      .then((stream) => {
+        onAccessApproved(stream);
+      });
+  }
+
+  if (message.action === 'stopvideo') {
+    console.log('stopping video');
+    sendResponse(`processed: ${message.action}`);
+    if (!recorder) return console.log('no recorder');
+
+    recorder.stop();
   }
 });
-
-// Function to start screen recording
-async function startRecording() {
-  try {
-    mediaStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-    mediaRecorder = new MediaRecorder(mediaStream);
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        chunks.push(event.data);
-      }
-    };
-    mediaRecorder.onstop = () => {
-      const blob = new Blob(chunks, { type: 'video/webm' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'screen-recording.webm';
-      a.click();
-      URL.revokeObjectURL(url);
-    };
-    mediaRecorder.start();
-    isRecording = true;
-  } catch (error) {
-    console.error('Error starting screen recording:', error);
-  }
-}
-
-// Function to stop screen recording
-function stopRecording() {
-  mediaRecorder.stop();
-  mediaStream.getVideoTracks()[0].stop();
-  isRecording = false;
-  chunks = [];
-}
-
-// Call the function to inject the screen selection UI
-injectScreenSelectionUI();
